@@ -1,0 +1,99 @@
+---
+title: 'Desafio: Processo Seletivo Oper'
+author: "Maurício dos Anjos"
+date: "24/02/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+#Carregando pacotes necessarios
+library(geosphere)
+library(sf)
+library(reshape2)
+```
+
+A base de dados distância é composta pelas distâncias de vendedores e as informações
+georreferenciadas de onde cada um passou por dia. O objetivo é avaliar essas distâncias 
+por dia e por vendedor. 
+
+```{r cars}
+library(readxl)
+
+#Lendo os dados de distância
+distancia <- read_excel("distancia.xlsx")
+distancia<-na.omit(distancia)
+distancia[1:20,]
+```
+
+```{r}
+library(dplyr)
+dist<-c()
+contador<-1
+#Obtendo os dados de distancias totais por vendedor
+
+for (i in unique(distancia$vendedor)){
+  Vend_atual<-distancia %>% filter(vendedor == i)
+  dist[contador]<-perimeter(data.frame(Vend_atual$lon, Vend_atual$lat))
+  contador<- contador + 1
+}
+
+#Convertendo para Quilômetros 
+Dist_vendedor<- data.frame(unique(distancia$vendedor), dist/1000)
+colnames(Dist_vendedor)<-c("Vendedor", "Distância total percorrida em Km")
+Dist_vendedor[1:20,]
+dim(Dist_vendedor)
+```
+A Tabela acima mostra o perímetro total percorrido pelos vendedores com base nas informações 
+georreferenciadas de latitude e longitude. 
+
+```{r}
+
+#tabela de distancia por dia
+dista_d<-c()
+Data<-c()
+Vendedor<-c()
+cont<-1
+min(distancia$data_visita)
+distancia$data_visita<-as.Date(distancia$data_visita)
+
+
+#criando uma função para agregar as distancias por vendedor
+for (j in as.character(unique(distancia$data_visita))){
+  for (i in unique(distancia$vendedor)){
+    Vend_atual<-distancia %>% filter(vendedor == i & data_visita== j)
+    dista_d[cont]<-perimeter(data.frame(Vend_atual$lon, Vend_atual$lat))
+    Data[cont]<- j
+    Vendedor[cont]<- i
+    cont<- cont + 1
+  }
+}
+
+
+dista_dia<-data.frame(Vendedor, Data, round(dista_d/1000, digits = 2))
+colnames(dista_dia)<-c("Vendedor", "Data" , "Distância total percorrida (Em km)")
+dista_dia[1:20,]
+dim(dista_dia)
+```
+
+A tabela acima representa a análise das distâncias por dia registrado. É notório que alguns vendedores 
+não percorreram nenhuma distância em alguns dias. Essas medidas representam locais na Republica Dominicana.
+
+
+```{r}
+library(ggplot2)
+dista_dia %>%
+ filter(`Distância total percorrida (Em km)` >= 0L & `Distância total percorrida (Em km)` <= 
+ 500L) %>%
+ ggplot() +
+  aes(x = `Distância total percorrida (Em km)`) +
+  geom_histogram(bins = 44L, fill = "#247524") +
+  labs(
+    y = "Frequência",
+    title = "Distância percorrida por dia por vendedor ",
+    subtitle = "Frequência de vendedores"
+  ) +
+  theme_minimal()
+```
+Pela análise do gráfico acima é possível ver que a maioria dos vendedores percorrem de 0 a 10 Km 
+por dia, o que se faz razoável. Poucos desses vendedores percorrem mais que 50 Km. 
